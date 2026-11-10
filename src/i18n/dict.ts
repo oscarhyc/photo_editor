@@ -141,7 +141,7 @@ export const zhHans: Dict = {
   // ---- viewport
   'viewport.original': '原图',
   'viewport.aiPreview': 'AI 预览 · 未应用',
-  'viewport.hint': '滚轮缩放 · 空格/Alt 拖拽平移 · V 移动 · W 魔棒 · E 背景橡皮擦 · F 适应窗口 · B 看原图',
+  'viewport.hint': '滚轮缩放 · 空格/Alt 拖拽平移 · V 移动 · W 魔棒 · E 背景橡皮擦 · C 裁剪 · F 适应窗口 · B 看原图',
   'viewport.dropHint': '松手载入图片（作为新图层）',
 
   // ---- status
@@ -160,6 +160,7 @@ export const zhHans: Dict = {
   'status.kept': '已保留选区（其余删除）',
   'status.erasedBrush': '已擦除',
   'status.maskRemoved': '已移除蒙版',
+  'status.cropped': '已裁剪为 {w} × {h}',
 
   // ---- history labels
   'sample.name': '示例照片',
@@ -252,6 +253,16 @@ export const zhHans: Dict = {
   'hist.fitContent': '适应内容',
   'export.scale': '倍率',
   'export.output': '输出 {w} × {h}',
+
+  // ---- crop tool
+  'tool.crop': '裁剪',
+  'crop.free': '自由',
+  'crop.apply': '应用裁剪',
+  'crop.cancel': '取消',
+  'crop.hint': '拖动画面建立选框，拖手柄调整；Enter 应用，Esc 取消。',
+  'crop.size': '{w} × {h}',
+  'crop.keepRatio': '比例',
+  'hist.crop': '裁剪',
 
   'validate.required': '缺少参数 {name}',
   'validate.number': '{name} 必须是数字',
@@ -387,7 +398,7 @@ export const zhHant: Dict = {
 
   'viewport.original': '原圖',
   'viewport.aiPreview': 'AI 預覽 · 未套用',
-  'viewport.hint': '滾輪縮放 · 空格/Alt 拖曳平移 · V 移動 · W 魔棒 · E 背景橡皮擦 · F 最適視窗 · B 看原圖',
+  'viewport.hint': '滾輪縮放 · 空格/Alt 拖曳平移 · V 移動 · W 魔棒 · E 背景橡皮擦 · C 裁剪 · F 最適視窗 · B 看原圖',
   'viewport.dropHint': '放開以載入圖片（作為新圖層）',
 
   'status.ready': '就緒',
@@ -405,6 +416,7 @@ export const zhHant: Dict = {
   'status.kept': '已保留選區（其餘刪除）',
   'status.erasedBrush': '已擦除',
   'status.maskRemoved': '已移除遮罩',
+  'status.cropped': '已裁切為 {w} × {h}',
 
   'sample.name': '範例照片',
   'hist.loadSample': '載入範例照片',
@@ -494,6 +506,16 @@ export const zhHant: Dict = {
   'hist.fitContent': '最適內容',
   'export.scale': '倍率',
   'export.output': '輸出 {w} × {h}',
+
+  // ---- crop tool
+  'tool.crop': '裁剪',
+  'crop.free': '自由',
+  'crop.apply': '套用裁剪',
+  'crop.cancel': '取消',
+  'crop.hint': '拖曳畫面建立選取框，拖手柄調整；Enter 套用，Esc 取消。',
+  'crop.size': '{w} × {h}',
+  'crop.keepRatio': '比例',
+  'hist.crop': '裁剪',
 
   'validate.required': '缺少參數 {name}',
   'validate.number': '{name} 必須是數字',
@@ -629,7 +651,7 @@ export const en: Dict = {
 
   'viewport.original': 'Original',
   'viewport.aiPreview': 'AI preview · not applied',
-  'viewport.hint': 'Wheel to zoom · Space/Alt drag to pan · V move · W wand · E eraser · F fit · B original',
+  'viewport.hint': 'Wheel to zoom · Space/Alt drag to pan · V move · W wand · E eraser · C crop · F fit · B original',
   'viewport.dropHint': 'Drop to load as a new layer',
 
   'status.ready': 'Ready',
@@ -647,6 +669,7 @@ export const en: Dict = {
   'status.kept': 'Kept the selection, erased the rest',
   'status.erasedBrush': 'Erased',
   'status.maskRemoved': 'Mask removed',
+  'status.cropped': 'Cropped to {w} x {h}',
 
   'sample.name': 'Sample photo',
   'hist.loadSample': 'Load sample photo',
@@ -736,6 +759,16 @@ export const en: Dict = {
   'hist.fitContent': 'Fit to content',
   'export.scale': 'Scale',
   'export.output': 'Output {w} x {h}',
+
+  // ---- crop tool
+  'tool.crop': 'Crop',
+  'crop.free': 'Free',
+  'crop.apply': 'Apply crop',
+  'crop.cancel': 'Cancel',
+  'crop.hint': 'Drag on the canvas to make a box, drag the handles to adjust; Enter applies, Esc cancels.',
+  'crop.size': '{w} × {h}',
+  'crop.keepRatio': 'Ratio',
+  'hist.crop': 'Crop',
 
   'validate.required': 'Missing parameter {name}',
   'validate.number': '{name} must be a number',

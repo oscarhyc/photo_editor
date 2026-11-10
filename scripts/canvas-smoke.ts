@@ -15,12 +15,27 @@ import {
   setDpi,
 } from '../src/doc/ops'
 import type { Doc } from '../src/doc/types'
+import {
+  MIN_SIZE,
+  clampRect,
+  cursorForHandle,
+  dragHandle,
+  handleAt,
+  rectFromDrag,
+  rectFromPoints,
+  withAspect,
+} from '../src/render/crop'
 
 let failures = 0
 function check(name: string, actual: unknown, expected: unknown) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected)
   if (!ok) failures++
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)}`}`)
+}
+
+function ok(name: string, cond: boolean, extra = '') {
+  if (!cond) failures++
+  console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}${cond ? '' : ` ${extra}`}`)
 }
 
 function makeDoc(w = 100, h = 100): Doc {
@@ -162,6 +177,48 @@ const t0 = (d: Doc) => d.layers[0].transform
   check('scaledDoc scales transforms', [out.layers[0].transform.x, out.layers[0].transform.w], [20, 200])
   check('scaledDoc leaves the original alone', [d.width, d.layers[0].transform.x], [100, 10])
   check('scaledDoc(1) is identity', scaledDoc(d, 1) === d, true)
+}
+
+// ---------------------------------------------------------------- crop tool
+{
+  const b = { w: 1600, h: 1000 }
+  const r = rectFromPoints(200, 300, 100, 50)
+  check('rectFromPoints normalises', [r.x, r.y, r.w, r.h], [100, 50, 100, 250])
+
+  const full = { x: 0, y: 0, w: 1600, h: 1000 }
+  check('handle: corner', handleAt(full, 0, 0, 10), 'nw')
+  check('handle: edge midpoint', handleAt(full, 800, 0, 10), 'n')
+  check('handle: inside is move', handleAt(full, 800, 500, 10), 'move')
+  check('handle: outside is null', handleAt({ x: 100, y: 100, w: 400, h: 300 }, 900, 600, 10), null)
+
+  const moved = dragHandle({ x: 100, y: 100, w: 400, h: 300 }, 'move', 50, -20, null, b)
+  check('move keeps the size', [moved.x, moved.y, moved.w, moved.h], [150, 80, 400, 300])
+
+  const grew = dragHandle({ x: 100, y: 100, w: 400, h: 300 }, 'se', 60, 40, null, b)
+  check('se grows from the top-left anchor', [grew.x, grew.y, grew.w, grew.h], [100, 100, 460, 340])
+
+  const grewW = dragHandle({ x: 100, y: 100, w: 400, h: 300 }, 'w', -50, 0, null, b)
+  check('w grows leftwards, right edge fixed', [grewW.x, grewW.w, grewW.x + grewW.w], [50, 450, 500])
+
+  const tiny = dragHandle({ x: 100, y: 100, w: 400, h: 300 }, 'se', -1000, -1000, null, b)
+  ok('collapsing respects the minimum size', tiny.w >= MIN_SIZE && tiny.h >= MIN_SIZE, JSON.stringify(tiny))
+
+  const outside = dragHandle({ x: 100, y: 100, w: 400, h: 300 }, 'se', 99999, 99999, null, b)
+  check('dragging never leaves the canvas', [outside.x + outside.w, outside.y + outside.h], [1600, 1000])
+
+  const locked = dragHandle({ x: 0, y: 0, w: 400, h: 400 }, 'se', 200, 0, 1, b)
+  ok('aspect lock keeps 1:1', Math.abs(locked.w - locked.h) < 0.001, JSON.stringify(locked))
+
+  const wide = withAspect({ x: 0, y: 0, w: 1600, h: 1000 }, 16 / 9, b)
+  ok('withAspect fits 16:9 inside the canvas', Math.abs(wide.w / wide.h - 16 / 9) < 0.001 && wide.w <= 1600)
+
+  const drawn = rectFromDrag(100, 100, 500, 300, 1, b)
+  ok('rectFromDrag honours the aspect from the origin', Math.abs(drawn.w - drawn.h) < 0.001, JSON.stringify(drawn))
+  const drawnLeft = rectFromDrag(500, 500, 100, 100, null, b)
+  check('rectFromDrag anchors at the origin', [drawnLeft.x, drawnLeft.y], [100, 100])
+
+  check('cursor mapping', cursorForHandle('nw'), 'nwse-resize')
+  check('clampRect pins to the canvas', clampRect({ x: -50, y: -50, w: 400, h: 300 }, b), { x: 0, y: 0, w: 400, h: 300 })
 }
 
 console.log(`\nfailures: ${failures}`)

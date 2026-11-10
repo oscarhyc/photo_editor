@@ -10,12 +10,26 @@ import { sourcePixels } from '../tools/pixels'
 import { applyWand, wandSelection } from '../tools/wand'
 import { eraseDab, eraseStroke } from '../tools/bgEraser'
 import { ToolPalette } from './ToolPalette'
+import {
+  clampRect,
+  cursorForHandle,
+  dragHandle,
+  handleAt as cropHandleAt,
+  rectFromDrag,
+  type CropHandle,
+  type Rect,
+} from '../render/crop'
+import { applyCrop, cancelCrop, enterCropTool } from '../app/cropActions'
 import { useT } from '../i18n'
 
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; panX: number; panY: number }
   | { kind: 'move'; layerId: string; sx: number; sy: number; t0: LayerTransform }
   | { kind: 'resize'; layerId: string; t0: LayerTransform; r0: number; cx: number; cy: number }
+
+type CropDrag =
+  | { mode: 'new'; origin: [number, number] }
+  | { mode: 'handle'; handle: CropHandle; start: Rect; origin: [number, number] }
 
 type Stroke = {
   layerId: string
@@ -56,6 +70,9 @@ export function Viewport() {
   const tool = useUI((s) => s.tool)
   const wand = useUI((s) => s.wand)
   const eraser = useUI((s) => s.eraser)
+  const cropRect = useUI((s) => s.cropRect)
+  const cropAspect = useUI((s) => s.cropAspect)
+  const setCropRect = useUI((s) => s.setCropRect)
   const workingMaskId = useUI((s) => s.workingMaskId)
   const workingMaskLayer = useUI((s) => s.workingMaskLayer)
   const setWorkingMask = useUI((s) => s.setWorkingMask)
@@ -66,6 +83,7 @@ export function Viewport() {
 
   const dragRef = useRef<Drag | null>(null)
   const strokeRef = useRef<Stroke | null>(null)
+  const cropDragRef = useRef<CropDrag | null>(null)
   const hoverRef = useRef<[number, number] | null>(null)
   const spaceRef = useRef(false)
   const dirty = useRef(true)
@@ -181,6 +199,60 @@ export function Viewport() {
       }
     }
 
+    // crop overlay
+    if (tool === 'crop' && cropRect) {
+      const [cx0, cy0] = docToScreen(cropRect.x, cropRect.y)
+      const [cx1, cy1] = docToScreen(cropRect.x + cropRect.w, cropRect.y + cropRect.h)
+
+      ctx.save()
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'
+      ctx.fillRect(x, y, w, Math.max(0, cy0 - y))
+      ctx.fillRect(x, cy1, w, Math.max(0, y + h - cy1))
+      ctx.fillRect(x, cy0, Math.max(0, cx0 - x), Math.max(0, cy1 - cy0))
+      ctx.fillRect(cx1, cy0, Math.max(0, x + w - cx1), Math.max(0, cy1 - cy0))
+      ctx.restore()
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(cx0 + 0.5, cy0 + 0.5, Math.max(0, cx1 - cx0 - 1), Math.max(0, cy1 - cy0 - 1))
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)'
+      for (let i = 1; i <= 2; i++) {
+        const gx = cx0 + ((cx1 - cx0) * i) / 3
+        const gy = cy0 + ((cy1 - cy0) * i) / 3
+        ctx.beginPath()
+        ctx.moveTo(gx, cy0)
+        ctx.lineTo(gx, cy1)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(cx0, gy)
+        ctx.lineTo(cx1, gy)
+        ctx.stroke()
+      }
+
+      const mx = (cx0 + cx1) / 2
+      const my = (cy0 + cy1) / 2
+      const handles: [number, number][] = [
+        [cx0, cy0],
+        [mx, cy0],
+        [cx1, cy0],
+        [cx1, my],
+        [cx1, cy1],
+        [mx, cy1],
+        [cx0, cy1],
+        [cx0, my],
+      ]
+      for (const [hx, hy] of handles) {
+        ctx.fillStyle = '#0d1117'
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.rect(hx - 4.5, hy - 4.5, 9, 9)
+        ctx.fill()
+        ctx.stroke()
+      }
+    }
+
     // brush cursor
     if (tool === 'eraser' && hoverRef.current) {
       const [hx, hy] = hoverRef.current
@@ -198,7 +270,7 @@ export function Viewport() {
 
   useEffect(() => {
     dirty.current = true
-  }, [viewDoc, zoom, panX, panY, size, tool, eraser.radius])
+  }, [viewDoc, zoom, panX, panY, size, tool, eraser.radius, cropRect])
 
   useEffect(() => {
     let raf = 0
@@ -283,6 +355,21 @@ export function Viewport() {
           break
         case 'e':
           useUI.getState().setTool('eraser')
+          break
+        case 'c':
+          enterCropTool()
+          break
+        case 'enter':
+          if (useUI.getState().tool === 'crop') {
+            e.preventDefault()
+            applyCrop()
+          }
+          break
+        case 'escape':
+          if (useUI.getState().tool === 'crop') {
+            e.preventDefault()
+            cancelCrop()
+          }
           break
         case 'f':
           setView({ zoom: 1, panX: 0, panY: 0 })
@@ -446,6 +533,26 @@ export function Viewport() {
 
     const [dx, dy] = screenToDoc(sx, sy)
 
+    if (tool === 'crop') {
+      const d = useDoc.getState().doc
+      const r = cropRect ?? { x: 0, y: 0, w: d.width, h: d.height }
+      const tol = 9 / geoRef.current.scale
+      const hit = cropHandleAt(r, dx, dy, tol)
+      // A full-canvas box has no "outside" to drag from, so dragging inside it
+      // starts a new box instead of trying to move a box that cannot move.
+      const isFull =
+        Math.abs(r.x) < 0.5 &&
+        Math.abs(r.y) < 0.5 &&
+        Math.abs(r.w - d.width) < 0.5 &&
+        Math.abs(r.h - d.height) < 0.5
+      cropDragRef.current =
+        hit && !(hit === 'move' && isFull)
+          ? { mode: 'handle', handle: hit, start: r, origin: [dx, dy] }
+          : { mode: 'new', origin: [dx, dy] }
+      setDragging(true)
+      return
+    }
+
     if (tool === 'wand') {
       runWand(dx, dy, e.shiftKey ? 'keep' : 'erase')
       return
@@ -496,6 +603,35 @@ export function Viewport() {
 
     const drag = dragRef.current
     const [dx, dy] = screenToDoc(sx, sy)
+    const canvasEl = e.currentTarget as HTMLCanvasElement
+
+    if (tool === 'crop') {
+      const d = useDoc.getState().doc
+      const bounds = { w: d.width, h: d.height }
+      const cropDrag = cropDragRef.current
+      if (cropDrag) {
+        const next =
+          cropDrag.mode === 'new'
+            ? rectFromDrag(cropDrag.origin[0], cropDrag.origin[1], dx, dy, cropAspect, bounds)
+            : dragHandle(
+                cropDrag.start,
+                cropDrag.handle,
+                dx - cropDrag.origin[0],
+                dy - cropDrag.origin[1],
+                cropAspect,
+                bounds,
+              )
+        if (next.w >= 2 && next.h >= 2) setCropRect(next)
+      } else if (cropRect) {
+        canvasEl.style.cursor = cursorForHandle(
+          cropHandleAt(cropRect, dx, dy, 9 / geoRef.current.scale),
+        )
+      } else {
+        canvasEl.style.cursor = 'crosshair'
+      }
+      dirty.current = true
+      return
+    }
 
     if (!drag) {
       if (strokeRef.current) continueErase(dx, dy)
@@ -536,6 +672,14 @@ export function Viewport() {
     const drag = dragRef.current
     dragRef.current = null
     setDragging(false)
+    if (tool === 'crop') {
+      const cropDrag = cropDragRef.current
+      cropDragRef.current = null
+      if (cropDrag?.mode === 'new' && cropRect && (cropRect.w < 2 || cropRect.h < 2)) {
+        setCropRect(clampRect(cropRect, { w: doc.width, h: doc.height }))
+      }
+      return
+    }
     if (tool === 'eraser') {
       endErase()
       return
@@ -553,7 +697,13 @@ export function Viewport() {
   const onDoubleClick = () => setView({ zoom: 1, panX: 0, panY: 0 })
 
   const cursor =
-    tool === 'wand' ? 'crosshair' : tool === 'eraser' ? 'none' : dragging ? 'grabbing' : 'default'
+    tool === 'wand' || tool === 'crop'
+      ? 'crosshair'
+      : tool === 'eraser'
+        ? 'none'
+        : dragging
+          ? 'grabbing'
+          : 'default'
 
   return (
     <div ref={containerRef} className="viewport" onDoubleClick={onDoubleClick}>

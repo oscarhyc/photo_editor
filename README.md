@@ -222,6 +222,27 @@ Also in the dialog: preset sizes (1080², 1080×1350, 1920×1080, 1080×1920,
 **适应内容 / Fit to content** — trims the canvas to the union of the visible
 layers' rotated corners, which is exactly what you want after a wand delete.
 
+### Interactive crop (`C`)
+
+A fourth tool in the palette. Drag anywhere to draw a box, drag the 8 handles to
+adjust, drag inside to move it. `Enter` applies, `Esc` cancels, or use the buttons.
+
+- Live overlay: dimmed outside, rule-of-thirds guides, handles, and a `w × h`
+  readout in document pixels.
+- Ratio lock: 自由 / 1:1 / 4:5 / 16:9 / 9:16 / 3:2. Picking one re-fits the
+  current box around its centre.
+- The rect is clamped to the canvas, has an 8 px minimum, and the dragged edge
+  stays anchored — the opposite edge never jumps.
+- A full-canvas box has no "outside" to drag from, so dragging inside it draws a
+  new box instead of trying to move a box that cannot move (this was a real bug
+  caught by the UI test).
+- Applies through `setCanvasRect`, so it is one undo step and reuses the same
+  code path as Crop-by-ratio and Fit-to-content.
+
+The geometry lives in `src/render/crop.ts` as pure functions (`handleAt`,
+`dragHandle`, `rectFromDrag`, `withAspect`, `clampRect`) — shared verbatim by the
+tool and the 16 crop assertions in `smoke:canvas`.
+
 ## Selection & masking（魔棒 / 背景橡皮擦）
 
 Layers carry an optional **alpha mask** — one byte per source pixel, `255` keep / `0` erased.

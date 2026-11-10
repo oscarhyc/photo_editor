@@ -3,6 +3,7 @@ import { applyPatches, enablePatches, produceWithPatches, type Patch } from 'imm
 import type { Doc } from './types'
 import type { Recipe } from './ops'
 import { collectMaskIds, pruneMasks } from './mask'
+import type { Rect } from '../render/crop'
 
 enablePatches()
 
@@ -164,7 +165,7 @@ export const useDoc = create<DocStore>((set, get) => ({
 
 export type Panel = 'layers' | 'adjust' | 'presets'
 
-export type Tool = 'select' | 'wand' | 'eraser'
+export type Tool = 'select' | 'wand' | 'eraser' | 'crop'
 
 export type WandSettings = { tolerance: number; contiguous: boolean; feather: number }
 export type EraserSettings = { radius: number; tolerance: number }
@@ -188,6 +189,11 @@ type UIStore = {
   setWand: (p: Partial<WandSettings>) => void
   setEraser: (p: Partial<EraserSettings>) => void
   setWorkingMask: (layerId: string | null, maskId: string | null) => void
+  /** interactive crop rect, in document pixels */
+  cropRect: Rect | null
+  cropAspect: number | null
+  setCropRect: (r: Rect | null) => void
+  setCropAspect: (a: number | null) => void
   setPanel: (p: Panel) => void
   setView: (v: { zoom?: number; panX?: number; panY?: number }) => void
   setShowOriginal: (v: boolean) => void
@@ -213,6 +219,10 @@ export const useUI = create<UIStore>((set) => ({
   setWand: (p) => set((s) => ({ wand: { ...s.wand, ...p } })),
   setEraser: (p) => set((s) => ({ eraser: { ...s.eraser, ...p } })),
   setWorkingMask: (workingMaskLayer, workingMaskId) => set({ workingMaskLayer, workingMaskId }),
+  cropRect: null,
+  cropAspect: null,
+  setCropRect: (cropRect) => set({ cropRect }),
+  setCropAspect: (cropAspect) => set({ cropAspect }),
   setPanel: (panel) => set({ panel }),
   setView: (v) => set({ ...v }),
   setShowOriginal: (showOriginal) => set({ showOriginal }),
