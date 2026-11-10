@@ -1,0 +1,31 @@
+{
+  "name": "photo-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:local": "vite --host 127.0.0.1",
+    "lan:ip": "node -e \"const os=require('os');for(const l of Object.values(os.networkInterfaces()))for(const a of l||[])if(a.family==='IPv4'&&!a.internal)console.log('LAN  http://'+a.address+':5273/')\"",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "smoke": "npm run smoke:history && npm run smoke:mask && npm run smoke:ai",
+    "smoke:history": "esbuild scripts/history-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/history-smoke.mjs --log-level=error && node /tmp/history-smoke.mjs",
+    "smoke:mask": "esbuild scripts/mask-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/mask-smoke.mjs --log-level=error && node /tmp/mask-smoke.mjs",
+    "smoke:ai": "esbuild scripts/ai-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/ai-smoke.mjs --log-level=error && node /tmp/ai-smoke.mjs"
+  },
+  "dependencies": {
+    "immer": "^10.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
