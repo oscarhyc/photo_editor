@@ -15,11 +15,12 @@ function requireLayer(d: Draft<Doc>, id: string): Draft<Layer> {
 
 // ---------------------------------------------------------------- doc
 
-export function createDoc(width: number, height: number): Doc {
+export function createDoc(width: number, height: number, dpi = 72): Doc {
   return {
     id: uid('doc'),
-    width,
-    height,
+    width: Math.max(1, Math.round(width)),
+    height: Math.max(1, Math.round(height)),
+    dpi,
     background: '#0e0f12',
     layers: [],
     selection: [],
@@ -111,6 +112,140 @@ export function select(d: Draft<Doc>, ids: string[]) {
   d.selection = ids
 }
 
+// ---------------------------------------------------------------- canvas geometry
+//
+// Three distinct operations. `crop` is a special case of `setCanvasRect`, and
+// "image size" is `applyScale` — resampling is non-destructive because layers
+// keep their source bitmap and only the transform changes.
+
+type BoundsInput = {
+  layers: ReadonlyArray<{
+    visible: boolean
+    transform: { x: number; y: number; w: number; h: number; rotation: number }
+  }>
+}
+
+/** Union of every visible layer's rotated corners. */
+export function contentBounds(
+  doc: BoundsInput,
+  padding = 0,
+): { x: number; y: number; w: number; h: number } | null {
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  let any = false
+
+  for (const l of doc.layers) {
+    if (!l.visible) continue
+    any = true
+    const { x, y, w, h, rotation } = l.transform
+    const cx = x + w / 2
+    const cy = y + h / 2
+    const c = Math.cos(rotation)
+    const s = Math.sin(rotation)
+    const corners: [number, number][] = [
+      [-w / 2, -h / 2],
+      [w / 2, -h / 2],
+      [w / 2, h / 2],
+      [-w / 2, h / 2],
+    ]
+    for (const [px, py] of corners) {
+      const X = cx + px * c - py * s
+      const Y = cy + px * s + py * c
+      if (X < x0) x0 = X
+      if (Y < y0) y0 = Y
+      if (X > x1) x1 = X
+      if (Y > y1) y1 = Y
+    }
+  }
+
+  if (!any) return null
+  return {
+    x: Math.floor(x0 - padding),
+    y: Math.floor(y0 - padding),
+    w: Math.max(1, Math.ceil(x1 - x0 + padding * 2)),
+    h: Math.max(1, Math.ceil(y1 - y0 + padding * 2)),
+  }
+}
+
+/** Set the canvas to an arbitrary rect in document space (used by crop + fit). */
+export function setCanvasRect(d: Draft<Doc>, x: number, y: number, w: number, h: number) {
+  for (const l of d.layers) {
+    l.transform.x -= x
+    l.transform.y -= y
+  }
+  d.width = Math.max(1, Math.round(w))
+  d.height = Math.max(1, Math.round(h))
+}
+
+/**
+ * Change the frame, keep pixels 1:1. `anchorX/Y` ∈ {0, .5, 1} decide which
+ * edge the new space comes from (0 = left/top, 1 = right/bottom).
+ */
+export function resizeCanvas(
+  d: Draft<Doc>,
+  newW: number,
+  newH: number,
+  anchorX = 0.5,
+  anchorY = 0.5,
+) {
+  const W = Math.max(1, Math.round(newW))
+  const H = Math.max(1, Math.round(newH))
+  const dx = (W - d.width) * anchorX
+  const dy = (H - d.height) * anchorY
+  for (const l of d.layers) {
+    l.transform.x += dx
+    l.transform.y += dy
+  }
+  d.width = W
+  d.height = H
+}
+
+/** Resample: scale the grid *and* every layer transform. Source pixels untouched. */
+export function applyScale(d: Draft<Doc>, k: number) {
+  if (!Number.isFinite(k) || k <= 0) return
+  for (const l of d.layers) {
+    const t = l.transform
+    t.x *= k
+    t.y *= k
+    t.w *= k
+    t.h *= k
+  }
+  d.width = Math.max(1, Math.round(d.width * k))
+  d.height = Math.max(1, Math.round(d.height * k))
+}
+
+export function setDpi(d: Draft<Doc>, dpi: number) {
+  d.dpi = Math.max(1, Math.round(dpi))
+}
+
+export function fitToContent(d: Draft<Doc>, padding = 0) {
+  const b = contentBounds(d, padding)
+  if (!b) return
+  setCanvasRect(d, b.x, b.y, b.w, b.h)
+}
+
+/** Pure clone, used for exporting at a multiple. */
+export function scaledDoc(doc: Doc, k: number): Doc {
+  if (k === 1) return doc
+  return {
+    ...doc,
+    width: Math.max(1, Math.round(doc.width * k)),
+    height: Math.max(1, Math.round(doc.height * k)),
+    layers: doc.layers.map((l) => ({
+      ...l,
+      transform: {
+        ...l.transform,
+        x: l.transform.x * k,
+        y: l.transform.y * k,
+        w: l.transform.w * k,
+        h: l.transform.h * k,
+      },
+    })),
+  }
+}
+
 export function crop(d: Draft<Doc>, aspect: number) {
   const { width: W, height: H } = d
   let w = W
@@ -119,14 +254,7 @@ export function crop(d: Draft<Doc>, aspect: number) {
     h = H
     w = H * aspect
   }
-  const x = (W - w) / 2
-  const y = (H - h) / 2
-  for (const l of d.layers) {
-    l.transform.x -= x
-    l.transform.y -= y
-  }
-  d.width = Math.round(w)
-  d.height = Math.round(h)
+  setCanvasRect(d, (W - w) / 2, (H - h) / 2, w, h)
 }
 
 // ---------------------------------------------------------------- filters

@@ -1,10 +1,11 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useDoc, useUI } from '../doc/store'
 import { exportDoc } from '../render/compositor'
 import { addLayersFromFiles, newDocument } from '../app/fileActions'
 import { useT } from '../i18n'
 import { Dropdown, MenuItem } from './Dropdown'
 import { LangSwitcher } from './LangSwitcher'
+import { CanvasDialog } from './CanvasDialog'
 
 const MIN_ZOOM = 0.05
 const MAX_ZOOM = 12
@@ -25,6 +26,8 @@ export function Topbar({ onFile }: { onFile: (f: File) => void }) {
 
   const openRef = useRef<HTMLInputElement>(null)
   const addRef = useRef<HTMLInputElement>(null)
+  const [showCanvas, setShowCanvas] = useState(false)
+  const [exportScale, setExportScale] = useState(1)
 
   const undoLabel = past[past.length - 1]?.label
   const redoLabel = future[0]?.label
@@ -33,7 +36,7 @@ export function Topbar({ onFile }: { onFile: (f: File) => void }) {
     setView({ zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor)) })
 
   const download = async (type: 'image/png' | 'image/jpeg') => {
-    const blob = await exportDoc(doc, type)
+    const blob = await exportDoc(doc, type, type === 'image/png' ? undefined : 0.92, exportScale)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -99,7 +102,29 @@ export function Topbar({ onFile }: { onFile: (f: File) => void }) {
           }}
         />
 
-        <Dropdown label={t('topbar.export')} title={t('topbar.exportTitle')} align="left" width={196}>
+        <Dropdown label={t('topbar.export')} title={t('topbar.exportTitle')} align="left" width={228}>
+          <div className="dd-row">
+            <span className="dd-row-label">{t('export.scale')}</span>
+            {[1, 2, 3].map((k) => (
+              <button
+                key={k}
+                className={`scale-chip ${exportScale === k ? 'is-active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setExportScale(k)
+                }}
+              >
+                {k}×
+              </button>
+            ))}
+          </div>
+          <div className="dd-hint">
+            {t('export.output', {
+              w: Math.round(doc.width * exportScale),
+              h: Math.round(doc.height * exportScale),
+            })}
+          </div>
+          <div className="dd-sep" />
           <MenuItem hint={t('topbar.pngHint')} onClick={() => void download('image/png')}>
             {t('topbar.png')}
           </MenuItem>
@@ -203,7 +228,18 @@ export function Topbar({ onFile }: { onFile: (f: File) => void }) {
         {t('topbar.recent', { label: lastLabel ? t(lastLabel) : '—' })}
       </span>
 
+      <button
+        className="size-pill"
+        onClick={() => setShowCanvas(true)}
+        title={t('topbar.sizeTitle')}
+      >
+        {doc.width} × {doc.height}
+        <span className="size-dpi">{doc.dpi} dpi</span>
+      </button>
+
       <LangSwitcher />
+
+      {showCanvas && <CanvasDialog onClose={() => setShowCanvas(false)} />}
     </header>
   )
 }

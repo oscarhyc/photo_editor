@@ -49,7 +49,7 @@ function pruneMasksFor(doc: Doc, past: Entry[], future: Entry[], workingMaskId: 
 }
 
 export const useDoc = create<DocStore>((set, get) => ({
-  doc: { id: 'empty', width: 1600, height: 1067, background: '#0e0f12', layers: [], selection: [] },
+  doc: { id: 'empty', width: 1600, height: 1067, dpi: 72, background: '#0e0f12', layers: [], selection: [] },
   past: [],
   future: [],
   lastLabel: '',

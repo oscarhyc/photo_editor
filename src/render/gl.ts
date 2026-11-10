@@ -77,6 +77,8 @@ function compile(gl: WebGLRenderingContext, type: number, src: string): WebGLSha
 export class GLCore {
   readonly canvas: HTMLCanvasElement
   readonly gl: WebGLRenderingContext
+  /** GPU limit for any single texture — the accumulation buffer is doc-sized. */
+  readonly maxTextureSize: number
   private programs = new Map<string, Program>()
   private vert: WebGLShader
   private quad: WebGLBuffer
@@ -100,6 +102,7 @@ export class GLCore {
     })
     if (!gl) throw new Error(t('error.webgl'))
     this.gl = gl
+    this.maxTextureSize = (gl.getParameter(gl.MAX_TEXTURE_SIZE) as number) || 4096
 
     this.vert = compile(gl, gl.VERTEX_SHADER, VERT)
 

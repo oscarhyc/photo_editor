@@ -1,4 +1,5 @@
 import type { Doc } from '../doc/types'
+import { scaledDoc } from '../doc/ops'
 import { getSource } from '../doc/sources'
 import { getMask } from '../doc/mask'
 import { GLCore } from './gl'
@@ -40,6 +41,10 @@ export class Compositor {
 
   get canvas(): HTMLCanvasElement {
     return this.core.canvas
+  }
+
+  get maxTextureSize(): number {
+    return this.core.maxTextureSize
   }
 
   render(doc: Doc): HTMLCanvasElement {
@@ -137,9 +142,26 @@ export function getCompositor(): Compositor {
   return singleton
 }
 
-/** Render a doc and hand back a PNG/JPEG blob. Same pipeline as the viewport. */
-export async function exportDoc(doc: Doc, type: 'image/png' | 'image/jpeg', quality = 0.92): Promise<Blob> {
-  const canvas = getCompositor().render(doc)
+/**
+ * Render a doc and hand back a PNG/JPEG blob. Same pipeline as the viewport.
+ *
+ * `scale` re-renders the document at N× (not an upscale of the composite):
+ * transforms are multiplied, so layers are re-sampled from their original
+ * bitmaps. Clamped to the GPU texture limit.
+ */
+export async function exportDoc(
+  doc: Doc,
+  type: 'image/png' | 'image/jpeg',
+  quality = 0.92,
+  scale = 1,
+): Promise<Blob> {
+  const compositor = getCompositor()
+  const max = compositor.maxTextureSize
+  const safe = Math.max(
+    1,
+    Math.min(scale, max / Math.max(1, doc.width), max / Math.max(1, doc.height)),
+  )
+  const canvas = compositor.render(scaledDoc(doc, safe))
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('export failed'))), type, quality)
   })

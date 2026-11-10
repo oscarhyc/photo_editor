@@ -10,8 +10,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:history && npm run smoke:mask && npm run smoke:ai",
+    "smoke": "npm run smoke:history && npm run smoke:canvas && npm run smoke:mask && npm run smoke:ai",
     "smoke:history": "esbuild scripts/history-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/history-smoke.mjs --log-level=error && node /tmp/history-smoke.mjs",
+    "smoke:canvas": "esbuild scripts/canvas-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/canvas-smoke.mjs --log-level=error && node /tmp/canvas-smoke.mjs",
     "smoke:mask": "esbuild scripts/mask-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/mask-smoke.mjs --log-level=error && node /tmp/mask-smoke.mjs",
     "smoke:ai": "esbuild scripts/ai-smoke.ts --bundle --platform=node --format=esm --define:import.meta.env='{}' --outfile=/tmp/ai-smoke.mjs --log-level=error && node /tmp/ai-smoke.mjs"
   },

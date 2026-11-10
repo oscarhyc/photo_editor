@@ -1080,3 +1080,239 @@ input[type='range']:hover::-webkit-slider-thumb {
   min-width: 14px;
   text-align: center;
 }
+
+/* ---------------------------------------------------------------- canvas modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 11, 0.62);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 200;
+}
+
+.modal {
+  width: 404px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  background: #171a20;
+  border: 1px solid #2b303a;
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.tabs button {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--dim);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.tabs button:hover {
+  background: transparent;
+  color: var(--text);
+}
+.tabs button.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.modal-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.seg {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  background: #0f1116;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.seg button {
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  padding: 3px 12px;
+  font-size: 11.5px;
+  border-radius: 4px;
+}
+.seg button:hover {
+  background: #242a35;
+  color: var(--text);
+}
+.seg button.is-active {
+  background: #242a35;
+  color: var(--text);
+}
+
+.modal-grid {
+  gap: 8px;
+}
+
+.modal-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--dim);
+}
+
+.anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 26px);
+  gap: 3px;
+}
+.anchor {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: #0f1116;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.anchor span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3a4150;
+}
+.anchor.is-active {
+  border-color: var(--accent);
+}
+.anchor.is-active span {
+  background: var(--accent);
+}
+
+.modal-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.modal-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--dim);
+}
+
+.warn {
+  margin: 0;
+  font-size: 11px;
+  color: #ffb454;
+}
+
+.modal-limit {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.unit-pick {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.unit-pick select {
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.size-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.size-pill:hover {
+  background: var(--panel-2);
+}
+.size-dpi {
+  color: var(--dim);
+  font-size: 10.5px;
+}
+
+.dd-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 2px;
+}
+.dd-row-label {
+  margin-right: auto;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.scale-chip {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: #0f1116;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--dim);
+}
+.scale-chip.is-active {
+  background: #16202f;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.dd-hint {
+  padding: 0 8px 6px;
+  font-size: 10px;
+  color: #5f6777;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the compact field style truncates labels to 14px — the modal needs full words */
+.modal .field.compact > span {
+  width: auto;
+  flex: 0 0 auto;
+}
+.modal .field.compact input {
+  min-width: 0;
+}

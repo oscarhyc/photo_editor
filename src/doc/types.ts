@@ -46,8 +46,11 @@ export type Layer = {
 
 export type Doc = {
   id: string
+  /** pixel grid of the output — this *is* the resolution */
   width: number
   height: number
+  /** print metadata only; the renderer never reads it */
+  dpi: number
   background: string
   layers: Layer[] // index 0 = bottom
   selection: LayerId[]

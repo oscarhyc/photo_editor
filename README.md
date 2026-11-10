@@ -187,6 +187,41 @@ Adding a layer fits the image inside the document, centred, and switches to the
 layers panel. Replacing the document frees the old GPU textures and bitmaps
 (`Compositor.resetTextures()` + `releaseAllExcept()`), so memory does not crawl.
 
+## Canvas size & resolution
+
+The size pill in the top bar (`1600 × 1067 · 72 dpi`) opens one dialog with two
+tabs. They are deliberately separate operations:
+
+| operation | content | doc grid | op |
+|---|---|---|---|
+| **Canvas size** | pixels unchanged, frame changes | ± | `resizeCanvas(d, w, h, anchorX, anchorY)` |
+| **Image size** | content scales with the frame | ± | `applyScale(d, k)` |
+| **Crop** | frame changes by a rect | − | `setCanvasRect` / `crop(aspect)` |
+
+**DPI is metadata and never touches pixels.** `Doc.dpi` is not read by the
+renderer. With *重新采样 / Resample* unchecked, the Image-size tab disables the
+pixel fields and only edits DPI — so "make it 300 dpi" is correctly a no-op
+visually, which is the thing most web editors get wrong.
+
+**Resampling is non-destructive.** Layers keep their source bitmap and only the
+transform changes, so `applyScale` is O(layers) patches, fully undoable, and
+downscale → upscale loses nothing: the GPU re-samples from the original every
+frame, and filters/masks live in source space so they stay sharp.
+
+Canvas size moves each layer by `(newW − oldW) × anchor`, with a 3×3 anchor grid
+in the dialog (0 = left/top, 1 = right/bottom). Crop is the same math with a
+negative delta — there is only one implementation.
+
+**Export scale re-renders, it does not upscale a composite.** `exportDoc(doc, …,
+scale)` renders `scaledDoc(doc, k)` — transforms multiplied, so layers are
+re-sampled from their original bitmaps at up to 3×. Clamped to the GPU's
+`MAX_TEXTURE_SIZE`, which is queried once and shown in the dialog as the limit.
+
+Also in the dialog: preset sizes (1080², 1080×1350, 1920×1080, 1080×1920,
+1200×630, A4@300), live megapixel + physical-size readout in inches/cm, and
+**适应内容 / Fit to content** — trims the canvas to the union of the visible
+layers' rotated corners, which is exactly what you want after a wand delete.
+
 ## Selection & masking（魔棒 / 背景橡皮擦）
 
 Layers carry an optional **alpha mask** — one byte per source pixel, `255` keep / `0` erased.
@@ -323,9 +358,15 @@ scripts/
 ```bash
 npm run smoke           # all three suites
 npm run smoke:history   # undo/redo/coalesce/jumpTo — 18 assertions
+npm run smoke:canvas    # size / anchors / resample / dpi / fit — 34 assertions
 npm run smoke:mask      # wand / eraser / blur — 22 assertions
 npm run smoke:ai        # the tool layer — 11 prompts + validation
 ```
+
+`smoke:canvas` covers the anchor math for all 9 positions, shrinking as well as
+growing, crop-as-a-rect, that canvas size never scales content, resample
+reversibility, that DPI changes nothing but the DPI, content bounds with
+rotation and hidden layers, fit-to-content, and that `scaledDoc` is pure.
 
 `smoke:mask` runs the selection algorithms headlessly (no DOM) against a synthetic
 two-colour image: contiguous vs global flood fill, seed-colour sensitivity, tolerance,
