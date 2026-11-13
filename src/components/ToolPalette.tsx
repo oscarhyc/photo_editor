@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useDoc, useUI } from '../doc/store'
 import { clearLayerMask } from '../doc/ops'
 import { useT } from '../i18n'
@@ -36,10 +37,36 @@ export function ToolPalette() {
   const setCropRect = useUI((s) => s.setCropRect)
   const setCropAspect = useUI((s) => s.setCropAspect)
 
+  // The hint text is long enough to cover the artwork, so it only appears after
+  // the pointer rests on the dock for a moment.
+  const [showHint, setShowHint] = useState(false)
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const startHint = () => {
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+    hintTimer.current = setTimeout(() => setShowHint(true), 3000)
+  }
+  const stopHint = () => {
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+    hintTimer.current = null
+    setShowHint(false)
+  }
+  useEffect(
+    () => () => {
+      if (hintTimer.current) clearTimeout(hintTimer.current)
+    },
+    [],
+  )
+
   const layer = doc.layers.find((l) => l.id === doc.selection[0]) ?? doc.layers[doc.layers.length - 1]
 
+  // Don't leave an empty panel floating over the artwork: the select tool has no
+  // controls until the hint is revealed (or the layer has a mask to clear).
+  const hasOptions =
+    !layer || tool !== 'select' || showHint || Boolean(layer.maskId)
+
   return (
-    <div className="tool-dock">
+    <div className="tool-dock" onPointerEnter={startHint} onPointerLeave={stopHint}>
       <div className="tool-strip">
         {TOOLS.map((tl) => (
           <button
@@ -54,10 +81,13 @@ export function ToolPalette() {
         ))}
       </div>
 
+      {hasOptions && (
       <div className="tool-options">
         {!layer && <div className="empty-small">{t('tool.pickLayer')}</div>}
 
-        {layer && tool === 'select' && <div className="hint-block">{t('tool.selectHint')}</div>}
+        {layer && tool === 'select' && showHint && (
+          <div className="hint-block">{t('tool.selectHint')}</div>
+        )}
 
         {layer && tool === 'wand' && (
           <>
@@ -86,7 +116,7 @@ export function ToolPalette() {
               />
               {t('tool.contiguous')}
             </label>
-            <div className="hint-block">{t('tool.wandHint')}</div>
+            {showHint && <div className="hint-block">{t('tool.wandHint')}</div>}
           </>
         )}
 
@@ -109,7 +139,7 @@ export function ToolPalette() {
               step={1}
               onChange={(v) => setEraser({ tolerance: v })}
             />
-            <div className="hint-block">{t('tool.eraserHint')}</div>
+            {showHint && <div className="hint-block">{t('tool.eraserHint')}</div>}
           </>
         )}
 
@@ -137,7 +167,7 @@ export function ToolPalette() {
                 {t('crop.size', { w: Math.round(cropRect.w), h: Math.round(cropRect.h) })}
               </div>
             )}
-            <div className="hint-block">{t('crop.hint')}</div>
+            {showHint && <div className="hint-block">{t('crop.hint')}</div>}
             <div className="row">
               <button className="primary" onClick={applyCrop}>
                 {t('crop.apply')}
@@ -159,6 +189,7 @@ export function ToolPalette() {
           </button>
         )}
       </div>
+      )}
     </div>
   )
 }

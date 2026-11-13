@@ -418,6 +418,7 @@ scripts/
 | Drag the dot above | rotate · `Shift` 15° snap |
 | `V` / `W` / `E` | 移动 · 魔棒 · 背景橡皮擦 |
 | `Shift`+click (wand) | keep selection only（反选删除） |
+| Rest on the tool dock 3 s | reveal the hint text (hidden by default so it never covers the artwork) |
 | `F` | fit · `B` hold | show original (filters stripped) |
 | `Del` | delete selected layer |
 | `⌘/Ctrl+Z` | 撤销 undo |
