@@ -5,7 +5,15 @@ import { removeLayer, select, setLayerMask, setLayerTransform } from '../doc/ops
 import { getSource } from '../doc/sources'
 import { bumpMask, maskDataFor, putMask } from '../doc/mask'
 import { getCompositor } from '../render/compositor'
-import { docToLayer, handleAt, hitTest, layerCorners, layerToSource } from '../render/geometry'
+import { docToLayer, hitTest, layerCorners, layerToSource } from '../render/geometry'
+import {
+  cursorForTransformHandle,
+  handlePoints,
+  hitHandle,
+  resizeByHandle,
+  rotateByHandle,
+  type TransformHandle,
+} from '../render/transform'
 import { sourcePixels } from '../tools/pixels'
 import { applyWand, wandSelection } from '../tools/wand'
 import { eraseDab, eraseStroke } from '../tools/bgEraser'
@@ -25,7 +33,8 @@ import { useT } from '../i18n'
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; panX: number; panY: number }
   | { kind: 'move'; layerId: string; sx: number; sy: number; t0: LayerTransform }
-  | { kind: 'resize'; layerId: string; t0: LayerTransform; r0: number; cx: number; cy: number }
+  | { kind: 'transform'; layerId: string; t0: LayerTransform; handle: TransformHandle }
+  | { kind: 'rotate'; layerId: string; t0: LayerTransform }
 
 type CropDrag =
   | { mode: 'new'; origin: [number, number] }
@@ -79,6 +88,13 @@ export function Viewport() {
 
   const [size, setSize] = useState({ w: 800, h: 600 })
   const [ghost, setGhost] = useState<{ id: string; t: LayerTransform } | null>(null)
+  // mirror of `ghost` that pointerup can read: a synthetic/fast drag can end
+  // before React re-renders, and the closure would still hold the old value
+  const ghostRef = useRef<{ id: string; t: LayerTransform } | null>(null)
+  const setGhostBoth = (g: { id: string; t: LayerTransform } | null) => {
+    ghostRef.current = g
+    setGhost(g)
+  }
   const [dragging, setDragging] = useState(false)
 
   const dragRef = useRef<Drag | null>(null)
@@ -185,8 +201,32 @@ export function Viewport() {
         ctx.strokeStyle = layer.locked ? 'rgba(255,255,255,0.35)' : '#5b9cff'
         ctx.lineWidth = 1.5
         ctx.stroke()
+
         if (!layer.locked) {
-          for (const [sx, sy] of corners) {
+          const rotOffset = 24 / g.scale
+          const pts = handlePoints(layer.transform, rotOffset)
+          const rot = pts.find((p) => p.handle === 'rotate')
+          const top = pts.find((p) => p.handle === 'n')
+          if (rot && top) {
+            const [rx, ry] = docToScreen(rot.x, rot.y)
+            const [tx, ty] = docToScreen(top.x, top.y)
+            ctx.strokeStyle = 'rgba(91,156,255,0.75)'
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(tx, ty)
+            ctx.lineTo(rx, ry)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.arc(rx, ry, 5, 0, Math.PI * 2)
+            ctx.fillStyle = '#0d1117'
+            ctx.fill()
+            ctx.strokeStyle = '#5b9cff'
+            ctx.lineWidth = 1.5
+            ctx.stroke()
+          }
+          for (const p of pts) {
+            if (p.handle === 'rotate') continue
+            const [sx, sy] = docToScreen(p.x, p.y)
             ctx.fillStyle = '#0d1117'
             ctx.strokeStyle = '#5b9cff'
             ctx.lineWidth = 1.5
@@ -568,12 +608,21 @@ export function Viewport() {
     const selLayer = d.layers.find((l) => l.id === sel)
 
     if (selLayer && !selLayer.locked) {
-      const hitR = 9 / geoRef.current.scale
-      if (handleAt(d, selLayer, dx, dy, hitR) >= 0) {
-        const cx = selLayer.transform.x + selLayer.transform.w / 2
-        const cy = selLayer.transform.y + selLayer.transform.h / 2
-        const r0 = Math.max(1, Math.hypot(dx - cx, dy - cy))
-        dragRef.current = { kind: 'resize', layerId: selLayer.id, t0: { ...selLayer.transform }, r0, cx, cy }
+      const hitR = 10 / geoRef.current.scale
+      const rotOffset = 24 / geoRef.current.scale
+      const hit = hitHandle(selLayer.transform, dx, dy, hitR, rotOffset)
+      if (hit === 'rotate') {
+        dragRef.current = { kind: 'rotate', layerId: selLayer.id, t0: { ...selLayer.transform } }
+        setDragging(true)
+        return
+      }
+      if (hit) {
+        dragRef.current = {
+          kind: 'transform',
+          layerId: selLayer.id,
+          t0: { ...selLayer.transform },
+          handle: hit,
+        }
         setDragging(true)
         return
       }
@@ -635,6 +684,22 @@ export function Viewport() {
 
     if (!drag) {
       if (strokeRef.current) continueErase(dx, dy)
+      if (tool === 'select') {
+        const d0 = useDoc.getState().doc
+        const sel = d0.layers.find((l) => l.id === d0.selection[0])
+        if (sel && !sel.locked) {
+          const hit = hitHandle(
+            sel.transform,
+            dx,
+            dy,
+            10 / geoRef.current.scale,
+            24 / geoRef.current.scale,
+          )
+          canvasEl.style.cursor = hit ? cursorForTransformHandle(hit, sel.transform.rotation) : 'default'
+        } else {
+          canvasEl.style.cursor = 'default'
+        }
+      }
       return
     }
 
@@ -650,20 +715,26 @@ export function Viewport() {
         x: drag.t0.x + (dx - drag.sx),
         y: drag.t0.y + (dy - drag.sy),
       }
-      setGhost({ id: drag.layerId, t })
+      setGhostBoth({ id: drag.layerId, t })
       setStatus(`x ${Math.round(t.x)}  y ${Math.round(t.y)}`)
       dirty.current = true
       return
     }
 
-    if (drag.kind === 'resize') {
-      const r = Math.hypot(dx - drag.cx, dy - drag.cy)
-      const k = Math.max(0.02, r / drag.r0)
-      const w = drag.t0.w * k
-      const h = drag.t0.h * k
-      const t: LayerTransform = { ...drag.t0, w, h, x: drag.cx - w / 2, y: drag.cy - h / 2 }
-      setGhost({ id: drag.layerId, t })
-      setStatus(`${Math.round(w)} × ${Math.round(h)}`)
+    if (drag.kind === 'transform') {
+      const t = resizeByHandle(drag.t0, drag.handle, dx, dy, {
+        uniform: e.shiftKey,
+        fromCenter: e.metaKey || e.ctrlKey,
+      })
+      setGhostBoth({ id: drag.layerId, t })
+      setStatus(`${Math.round(t.w)} × ${Math.round(t.h)}`)
+      dirty.current = true
+    }
+
+    if (drag.kind === 'rotate') {
+      const t = rotateByHandle(drag.t0, dx, dy, e.shiftKey)
+      setGhostBoth({ id: drag.layerId, t })
+      setStatus(`${Math.round((t.rotation * 180) / Math.PI)}°`)
       dirty.current = true
     }
   }
@@ -686,11 +757,17 @@ export function Viewport() {
     }
     if (!drag) return
     if (drag.kind === 'pan') return
-    const g = ghost
+    const g = ghostRef.current
     if (g) {
       const t = g.t
-      commit((d) => setLayerTransform(d, g.id, t), drag.kind === 'move' ? 'hist.moveLayer' : 'hist.resizeLayer')
-      setGhost(null)
+      const label =
+        drag.kind === 'move'
+          ? 'hist.moveLayer'
+          : drag.kind === 'rotate'
+            ? 'hist.rotateLayer'
+            : 'hist.resizeLayer'
+      commit((d) => setLayerTransform(d, g.id, t), label)
+      setGhostBoth(null)
     }
   }
 

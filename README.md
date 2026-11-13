@@ -187,6 +187,31 @@ Adding a layer fits the image inside the document, centred, and switches to the
 layers panel. Replacing the document frees the old GPU textures and bitmaps
 (`Compositor.resetTextures()` + `releaseAllExcept()`), so memory does not crawl.
 
+## Free transform
+
+Selecting a layer shows **8 scale handles** (4 corners + 4 edge midpoints) and a
+**rotation handle** above it.
+
+| drag | result |
+|---|---|
+| corner or edge | free resize — width and height are independent |
+| `Shift` | keep the aspect ratio |
+| `Ctrl` / `⌘` | scale from the centre instead of the opposite edge |
+| the dot above the box | rotate; `Shift` snaps to 15° |
+
+The opposite edge is the anchor, so the box grows away from where you grabbed it,
+and dragging past the anchor clamps to a 4 px minimum instead of flipping.
+
+This works on rotated layers because all the math runs in the layer's **local
+frame** (un-rotate the pointer, compute the extents, map the new centre back).
+The previous implementation used the distance from the centre, which is why it
+could only scale uniformly and always grew from the middle.
+
+`src/render/transform.ts` is pure (`resizeByHandle`, `rotateByHandle`,
+`handlePoints`, `hitHandle`, `cursorForTransformHandle`) and is covered by 26
+assertions, including rotated-layer cases and the shift/centre modifiers.
+Rotation is also editable numerically — a slider in the Layers panel (−180…180°).
+
 ## Canvas size & resolution
 
 The size pill in the top bar (`1600 × 1067 · 72 dpi`) opens one dialog with two
@@ -366,7 +391,9 @@ scripts/
 |---|---|---|
 | Wheel | zoom at cursor |
 | Space / Alt / middle-drag | pan |
-| Drag layer | move · corner handle | scale from centre |
+| Drag layer | move |
+| Drag handle | free resize · `Shift` uniform · `Ctrl/⌘` from centre |
+| Drag the dot above | rotate · `Shift` 15° snap |
 | `V` / `W` / `E` | 移动 · 魔棒 · 背景橡皮擦 |
 | `Shift`+click (wand) | keep selection only（反选删除） |
 | `F` | fit · `B` hold | show original (filters stripped) |

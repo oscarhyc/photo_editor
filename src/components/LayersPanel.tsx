@@ -138,6 +138,28 @@ export function LayersPanel() {
             </select>
           </label>
 
+          <label className="field">
+            <span>{t('layers.rotation')}</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={Math.round((layer.transform.rotation * 180) / Math.PI)}
+              onChange={(e) =>
+                commit(
+                  (d) => {
+                    const l = d.layers.find((x) => x.id === layer.id)
+                    if (l) l.transform.rotation = (Number(e.target.value) * Math.PI) / 180
+                  },
+                  'hist.rotateLayer',
+                  `rot:${layer.id}`,
+                )
+              }
+            />
+            <b>{Math.round((layer.transform.rotation * 180) / Math.PI)}°</b>
+          </label>
+
           <div className="panel-title sub">{t('layers.position')}</div>
           <div className="grid2">
             {(['x', 'y', 'w', 'h'] as const).map((k) => (

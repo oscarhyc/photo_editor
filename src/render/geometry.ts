@@ -73,16 +73,6 @@ export function hitTest(doc: Doc, layer: Layer, px: number, py: number): boolean
   return lx >= 0 && ly >= 0 && lx <= w && ly <= h
 }
 
-/** Half-checks: returns a corner handle index if within `r` px in doc space. */
-export function handleAt(doc: Doc, layer: Layer, px: number, py: number, r: number): number {
-  const corners = layerCorners(doc, layer)
-  for (let i = 0; i < corners.length; i++) {
-    const [x, y] = corners[i]
-    if ((x - px) ** 2 + (y - py) ** 2 <= r * r) return i
-  }
-  return -1
-}
-
 export function fitScale(doc: Doc, viewport: { w: number; h: number }): number {
   return Math.min(viewport.w / doc.width, viewport.h / doc.height) * 0.9
 }
