@@ -156,7 +156,7 @@ export const useDoc = create<DocStore>((set, get) => ({
   },
 
   load: (doc) => {
-    set({ doc, past: [], future: [], lastLabel: 'load', lastCoalesce: '' })
+    set({ doc, past: [], future: [], lastLabel: '', lastCoalesce: '' })
     pruneMasksFor(doc, [], [], null)
   },
 }))

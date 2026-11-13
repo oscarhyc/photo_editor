@@ -147,6 +147,7 @@ export const zhHans: Dict = {
 
   // ---- status
   'status.ready': '就绪',
+  'status.restored': '已恢复上次会话',
   'status.exported': '已导出 {type}',
   'status.clipboardInsecure': '剪贴板需要 HTTPS 或 localhost（局域网 IP 下浏览器会拒绝）',
   'status.copied': '已复制到剪贴板',
@@ -405,6 +406,7 @@ export const zhHant: Dict = {
   'viewport.dropHint': '放開以載入圖片（作為新圖層）',
 
   'status.ready': '就緒',
+  'status.restored': '已還原上次工作階段',
   'status.exported': '已匯出 {type}',
   'status.clipboardInsecure': '剪貼簿需要 HTTPS 或 localhost（區網 IP 下瀏覽器會拒絕）',
   'status.copied': '已複製到剪貼簿',
@@ -660,6 +662,7 @@ export const en: Dict = {
   'viewport.dropHint': 'Drop to load as a new layer',
 
   'status.ready': 'Ready',
+  'status.restored': 'Restored your last session',
   'status.exported': 'Exported {type}',
   'status.clipboardInsecure': 'Clipboard needs HTTPS or localhost (browsers block it on a LAN IP)',
   'status.copied': 'Copied to clipboard',

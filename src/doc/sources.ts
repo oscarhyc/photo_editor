@@ -8,14 +8,21 @@ import { uid } from './types'
 const registry = new Map<SourceId, Source>()
 const thumbs = new Map<SourceId, string>()
 
-export function putSource(name: string, bitmap: ImageBitmap): Source {
+export function putSource(name: string, bitmap: ImageBitmap, blob: Blob): Source {
   const source: Source = {
     id: uid('src'),
     name,
     width: bitmap.width,
     height: bitmap.height,
     bitmap,
+    blob,
   }
+  registry.set(source.id, source)
+  return source
+}
+
+/** Re-create a source under its original id, used when restoring a session. */
+export function adoptSource(source: Source): Source {
   registry.set(source.id, source)
   return source
 }
@@ -45,6 +52,19 @@ export function releaseAllExcept(keep: SourceId[] = []) {
 }
 
 /** Small data-url preview of a source, cached. Used by the layer list. */
+/** Encode a bitmap to PNG so procedurally generated images can be persisted too. */
+export async function bitmapToBlob(bitmap: ImageBitmap): Promise<Blob> {
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('2d context unavailable')
+  ctx.drawImage(bitmap, 0, 0)
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), 'image/png')
+  })
+}
+
 export function thumbnail(id: SourceId, size = 56): string | undefined {
   const cached = thumbs.get(id)
   if (cached) return cached

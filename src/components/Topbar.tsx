@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDoc, useUI } from '../doc/store'
 import { exportDoc } from '../render/compositor'
 import { addLayersFromFiles, newDocument } from '../app/fileActions'
@@ -23,11 +23,19 @@ export function Topbar({ onFile }: { onFile: (f: File) => void }) {
   const setView = useUI((s) => s.setView)
   const setShowOriginal = useUI((s) => s.setShowOriginal)
   const setStatus = useUI((s) => s.setStatus)
+  const status = useUI((s) => s.status)
 
   const openRef = useRef<HTMLInputElement>(null)
   const addRef = useRef<HTMLInputElement>(null)
   const [showCanvas, setShowCanvas] = useState(false)
   const [exportScale, setExportScale] = useState(1)
+
+  // transient feedback ("已导出 PNG", "已恢复上次会话") fades back to the last action
+  useEffect(() => {
+    if (status === 'status.ready') return
+    const id = setTimeout(() => setStatus('status.ready'), 4000)
+    return () => clearTimeout(id)
+  }, [status, setStatus])
 
   const undoLabel = past[past.length - 1]?.label
   const redoLabel = future[0]?.label
@@ -222,10 +230,12 @@ export function Topbar({ onFile }: { onFile: (f: File) => void }) {
 
       <div className="spacer" />
       <span
-        className="status"
+        className={`status ${status !== 'status.ready' ? 'is-fresh' : ''}`}
         title={t('topbar.count', { n: past.length, m: future.length })}
       >
-        {t('topbar.recent', { label: lastLabel ? t(lastLabel) : '—' })}
+        {status !== 'status.ready'
+          ? t(status)
+          : t('topbar.recent', { label: lastLabel ? t(lastLabel) : '—' })}
       </span>
 
       <button

@@ -63,6 +63,8 @@ export type Source = {
   width: number
   height: number
   bitmap: ImageBitmap
+  /** the original encoded bytes, so the session can be persisted and restored */
+  blob: Blob
 }
 
 let n = 0

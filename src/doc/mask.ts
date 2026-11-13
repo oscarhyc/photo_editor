@@ -66,6 +66,17 @@ export function pruneMasks(keep: Set<string>) {
   }
 }
 
+export function allMasks(): Mask[] {
+  return [...registry.values()]
+}
+
+/** Re-create a mask under its original id, used when restoring a session. */
+export function adoptMask(id: string, width: number, height: number, data: Uint8Array): Mask {
+  const m: Mask = { id, width, height, data, rev: 0 }
+  registry.set(id, m)
+  return m
+}
+
 export function maskStats() {
   let bytes = 0
   for (const m of registry.values()) bytes += m.data.length

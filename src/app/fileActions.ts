@@ -12,7 +12,7 @@ import type { Source } from '../doc/types'
  */
 export async function openAsDocument(file: File): Promise<void> {
   const bitmap = await createImageBitmap(file)
-  const src = putSource(file.name, bitmap)
+  const src = putSource(file.name, bitmap, file)
 
   const store = useDoc.getState()
   store.load(createDoc(bitmap.width, bitmap.height))
@@ -38,7 +38,7 @@ export async function addLayersFromFiles(files: File[]): Promise<void> {
   for (const f of files) {
     try {
       const bitmap = await createImageBitmap(f)
-      sources.push(putSource(f.name, bitmap))
+      sources.push(putSource(f.name, bitmap, f))
     } catch {
       // skip unreadable files rather than failing the whole batch
     }

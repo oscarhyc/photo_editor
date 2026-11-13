@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDoc, useUI, type Panel } from './doc/store'
 import { addImageLayer, createDoc } from './doc/ops'
-import { putSource } from './doc/sources'
+import { bitmapToBlob, putSource } from './doc/sources'
 import { addLayersFromFiles, openAsDocument } from './app/fileActions'
 import { makeSampleImage } from './demo/sample'
 import { Viewport } from './components/Viewport'
@@ -11,6 +11,7 @@ import { PresetsPanel } from './components/PresetsPanel'
 import { ChatPanel } from './components/ChatPanel'
 import { Topbar } from './components/Topbar'
 import { t, useT } from './i18n'
+import { restoreSession, saveSession } from './persist/session'
 
 const RAIL: { key: Panel; icon: string; labelKey: string }[] = [
   { key: 'layers', icon: '▤', labelKey: 'rail.layers' },
@@ -20,7 +21,7 @@ const RAIL: { key: Panel; icon: string; labelKey: string }[] = [
 
 async function loadSample() {
   const bitmap = await makeSampleImage()
-  const src = putSource(t('sample.name'), bitmap)
+  const src = putSource(t('sample.name'), bitmap, await bitmapToBlob(bitmap))
   const store = useDoc.getState()
   store.load(createDoc(bitmap.width, bitmap.height))
   store.commit((d) => {
@@ -40,8 +41,33 @@ export default function App() {
     if (booted.current) return
     booted.current = true
     void (async () => {
+      // a refresh, or the browser's back/forward buttons, must not lose the document
+      if (await restoreSession()) {
+        useUI.getState().setStatus(t('status.restored'))
+        return
+      }
       await loadSample()
     })()
+  }, [])
+
+  // autosave: debounced after every document change, plus one last attempt when
+  // the page goes away
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const unsubscribe = useDoc.subscribe((state, prev) => {
+      if (state.doc === prev.doc) return
+      clearTimeout(timer)
+      timer = setTimeout(() => void saveSession(), 700)
+    })
+    const flush = () => void saveSession()
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', flush)
+    return () => {
+      unsubscribe()
+      clearTimeout(timer)
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', flush)
+    }
   }, [])
 
   const onFile = async (file: File) => {

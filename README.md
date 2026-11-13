@@ -187,6 +187,28 @@ Adding a layer fits the image inside the document, centred, and switches to the
 layers panel. Replacing the document frees the old GPU textures and bitmaps
 (`Compositor.resetTextures()` + `releaseAllExcept()`), so memory does not crawl.
 
+## Persistence
+
+A refresh, or the browser's back/forward buttons, used to throw the document
+away. The session now survives them.
+
+- **IndexedDB**, one record. The `Doc` is already plain JSON-shaped data, and
+  `Blob`s / `Uint8Array`s survive structured clone — so masks are stored as raw
+  bytes and images keep their **original encoded file**, not a re-encode.
+- Every source carries its original `Blob` (`Source.blob`). A procedurally
+  generated sample is PNG-encoded once so it can be restored too.
+- Autosave is debounced **700 ms** after any document change, plus a flush on
+  `pagehide` / `visibilitychange`.
+- On boot: restore first, fall back to the sample only if there is nothing usable.
+- Only sources and masks the document (or its undo history) can still reference
+  are written, so a session never carries dead weight.
+- An empty document is not restored — a blank canvas falls back to the sample.
+
+**Not persisted:** the undo history. After a reload you can edit and undo
+normally, but you cannot undo *back past* the restored state. Persisting the
+patch stack would mean snapshotting every mask and source a history entry can
+reach; it is doable but it is a different feature.
+
 ## Free transform
 
 Selecting a layer shows **8 scale handles** (4 corners + 4 edge midpoints) and a
